@@ -57,8 +57,9 @@ class TapoHubChildCoordinator(TapoCoordinator):
             base_state = (await self.device.get_device_state()).get_or_raise()
             self.update_state_of(HubChildCommonState, base_state)
         elif isinstance(self.device, S200ButtonDevice):
+            event_state = (await self.device.get_event_logs(page_size=20)).get_or_raise()
             base_state = (await self.device.get_device_info()).get_or_raise()
-            self.update_state_of(HubChildCommonState, base_state)
+            self.update_state_of(HubChildCommonState, base_state | event_state)
         elif isinstance(self.device, T100MotionSensor):
             base_state = (await self.device.get_device_state()).get_or_raise()
             self.update_state_of(HubChildCommonState, base_state)
