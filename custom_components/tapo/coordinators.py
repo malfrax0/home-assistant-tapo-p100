@@ -1,10 +1,11 @@
+from gc import _CallbackType
 import logging
 from abc import ABC
 from abc import abstractmethod
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import cached_property
-from typing import cast
+from typing import Any, cast
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -46,6 +47,7 @@ from plugp100.responses.device_state import LightDeviceState
 from plugp100.responses.device_state import PlugDeviceState
 from plugp100.responses.tapo_exception import TapoError
 from plugp100.responses.tapo_exception import TapoException
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -112,7 +114,15 @@ class TapoCoordinator(ABC, DataUpdateCoordinator[StateMap]):
                 hass, _LOGGER, cooldown=DEBOUNCER_COOLDOWN, immediate=True
             ),
         )
+        self._callbacks: list[_CallbackType] = []
         self._states: StateMap = {}
+
+    def listen(self, callback: _CallbackType):
+        self._callbacks.append(callable)
+
+    def fire(self, event: str, data: [str, Any] | None) -> None:
+        for callback in self._callbacks:
+            callback(event, data)
 
     @property
     def device(self) -> TapoDevice:

@@ -2,7 +2,7 @@ from datetime import timedelta
 from typing import TypeVar
 
 from custom_components.tapo.const import DOMAIN
-from custom_components.tapo.coordinators import TapoCoordinator
+from custom_components.tapo.coordinators import StateMap, TapoCoordinator
 from homeassistant.core import callback
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
@@ -47,6 +47,16 @@ class TapoHubChildCoordinator(TapoCoordinator):
     ):
         super().__init__(hass, device, polling_interval)
 
+    async def _async_update_data(self) -> StateMap:
+        if isinstance(self.device, S200ButtonDevice):
+            event_state = (await self.device.get_event_logs(page_size=20)).get_or_raise()
+            
+            startId = self._states.get("start_id")
+            if startId == None and startId != event_state.event_start_id:
+                for ev in event_state.events:
+                    self.fire(ev.type, ev)
+        return await super()._async_update_data()
+
     async def _update_state(self):
         if isinstance(self.device, T31Device):
             base_state = (await self.device.get_device_state()).get_or_raise()
@@ -59,20 +69,8 @@ class TapoHubChildCoordinator(TapoCoordinator):
             base_state = (await self.device.get_device_state()).get_or_raise()
             self.update_state_of(HubChildCommonState, base_state)
         elif isinstance(self.device, S200ButtonDevice):
-            event_state = (await self.device.get_event_logs(page_size=20)).get_or_raise()
-            
-            startId = self._states.get("start_id")
-            if startId == None and startId != event_state.event_start_id:
-                for ev in event_state.events:
-                    if ev.type == "singleClick":
-                        await self.hass.bus.async_fire(DOMAIN + "_event", {
-                            "device_id": self.device._device_id,
-                            "type": ev.type,
-                            "timestamp": ev.timestamp
-                        })
-
             base_state = (await self.device.get_device_info()).get_or_raise()
-            self.update_state_of(HubChildCommonState, base_state | event_state)
+            self.update_state_of(HubChildCommonState, base_state)
         elif isinstance(self.device, T100MotionSensor):
             base_state = (await self.device.get_device_state()).get_or_raise()
             self.update_state_of(HubChildCommonState, base_state)
