@@ -1,4 +1,4 @@
-# Home Assistant Tapo Integration
+# Home Assistant Tapo Integration TRY3
 
 This is a custom integration to control Tapo devices from home assistant.
 
