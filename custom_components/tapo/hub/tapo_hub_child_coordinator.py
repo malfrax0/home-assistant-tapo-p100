@@ -9,6 +9,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from plugp100.api.hub.s200b_device import S200BDeviceState
 from plugp100.api.hub.s200b_device import S200ButtonDevice
+from plugp100.api.hub.s200b_device import parse_s200b_event
 from plugp100.api.hub.switch_child_device import SwitchChildDevice
 from plugp100.api.hub.switch_child_device import SwitchChildDeviceState
 from plugp100.api.hub.t100_device import T100MotionSensor
@@ -18,6 +19,7 @@ from plugp100.api.hub.t110_device import T110SmartDoorState
 from plugp100.api.hub.t31x_device import T31Device
 from plugp100.api.hub.t31x_device import T31DeviceState
 from plugp100.api.hub.t31x_device import TemperatureHumidityRecordsRaw
+
 
 HubChildDevice = (
     T31Device
@@ -58,6 +60,17 @@ class TapoHubChildCoordinator(TapoCoordinator):
             self.update_state_of(HubChildCommonState, base_state)
         elif isinstance(self.device, S200ButtonDevice):
             event_state = (await self.device.get_event_logs(page_size=20)).get_or_raise()
+            
+            startId = self._states.get("start_id")
+            if startId == None and startId != event_state.event_start_id:
+                for ev in event_state.events:
+                    if ev.type == "singleClick":
+                        await self.hass.bus.async_fire(DOMAIN + "_event", {
+                            "device_id": self.device._device_id,
+                            "type": ev.type,
+                            "timestamp": ev.timestamp
+                        })
+
             base_state = (await self.device.get_device_info()).get_or_raise()
             self.update_state_of(HubChildCommonState, base_state | event_state)
         elif isinstance(self.device, T100MotionSensor):

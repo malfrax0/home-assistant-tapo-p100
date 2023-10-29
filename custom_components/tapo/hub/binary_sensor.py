@@ -86,11 +86,25 @@ class LowBatterySensor(BaseTapoHubChildEntity, BinarySensorEntity):
             .base_info.at_low_battery
         )
 
+class S200ButtonSensor(BaseTapoHubChildEntity, BinarySensorEntity):
+    def __init__(self, coordinator: TapoCoordinator):
+        super().__init__(coordinator)
+        
+    def device_class(self) -> BinarySensorDeviceClass | None:
+        return BinarySensorDeviceClass.LOCK
+    
+    @property
+    def is_on(self) -> bool | None:
+        return (
+            cast(TapoCoordinator, self.coordinator)
+            .get_state_of(HubChildCommonState)
+            .detected
+        )
 
 SENSOR_MAPPING = {
     T31Device: [LowBatterySensor],
     T110SmartDoor: [SmartDoorSensor, LowBatterySensor],
-    S200ButtonDevice: [LowBatterySensor],
+    S200ButtonDevice: [LowBatterySensor, S200ButtonSensor],
     T100MotionSensor: [MotionSensor, LowBatterySensor],
     SwitchChildDevice: [LowBatterySensor],
 }
