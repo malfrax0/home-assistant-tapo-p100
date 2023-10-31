@@ -2,14 +2,14 @@ from datetime import timedelta
 from typing import TypeVar
 
 from custom_components.tapo.const import DOMAIN
-from custom_components.tapo.coordinators import StateMap, TapoCoordinator
+from custom_components.tapo.coordinators import StateMap
+from custom_components.tapo.coordinators import TapoCoordinator
 from homeassistant.core import callback
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from plugp100.api.hub.s200b_device import S200BDeviceState
 from plugp100.api.hub.s200b_device import S200ButtonDevice
-from plugp100.api.hub.s200b_device import parse_s200b_event
 from plugp100.api.hub.switch_child_device import SwitchChildDevice
 from plugp100.api.hub.switch_child_device import SwitchChildDeviceState
 from plugp100.api.hub.t100_device import T100MotionSensor
@@ -19,6 +19,7 @@ from plugp100.api.hub.t110_device import T110SmartDoorState
 from plugp100.api.hub.t31x_device import T31Device
 from plugp100.api.hub.t31x_device import T31DeviceState
 from plugp100.api.hub.t31x_device import TemperatureHumidityRecordsRaw
+from typing import cast
 
 
 HubChildDevice = (
@@ -49,12 +50,28 @@ class TapoHubChildCoordinator(TapoCoordinator):
 
     async def _async_update_data(self) -> StateMap:
         if isinstance(self.device, S200ButtonDevice):
-            event_state = (await self.device.get_event_logs(page_size=20)).get_or_raise()
-            
-            startId = self._states.get("start_id")
-            if startId == None and startId != event_state.event_start_id:
+            event_state = (
+                await self.device.get_event_logs(page_size=20)
+            ).get_or_raise()
+
+            currentState = self.get_state_of(HubChildCommonState)
+            if (
+                currentState != None
+                and currentState.start_id < event_state.event_start_id
+            ):
+                rotationDegrees = 0
+                lastEv = None
                 for ev in event_state.events:
-                    self.fire(ev.type, ev)
+                    if ev.id > currentState.start_id:
+                        if ev.type == "rotation":
+                            rotationDegrees += ev.degrees
+                            lastEv = ev
+                        else:
+                            self.fire(self.device._device_id, ev.type, ev.__dict__)
+                if rotationDegrees != 0:
+                    lastEv.degrees = rotationDegrees
+                    self.fire(self.device._device_id, "rotation", lastEv.__dict__)
+
         return await super()._async_update_data()
 
     async def _update_state(self):
@@ -70,6 +87,8 @@ class TapoHubChildCoordinator(TapoCoordinator):
             self.update_state_of(HubChildCommonState, base_state)
         elif isinstance(self.device, S200ButtonDevice):
             base_state = (await self.device.get_device_info()).get_or_raise()
+            event_state = (await self.device.get_event_logs(page_size=1)).get_or_raise()
+            base_state.start_id = event_state.event_start_id
             self.update_state_of(HubChildCommonState, base_state)
         elif isinstance(self.device, T100MotionSensor):
             base_state = (await self.device.get_device_state()).get_or_raise()

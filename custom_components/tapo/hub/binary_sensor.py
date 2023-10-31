@@ -1,4 +1,5 @@
 from gc import callbacks
+from typing import Any
 from typing import cast
 from typing import Optional
 
@@ -9,8 +10,8 @@ from custom_components.tapo.hub.tapo_hub_child_coordinator import BaseTapoHubChi
 from custom_components.tapo.hub.tapo_hub_child_coordinator import HubChildCommonState
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.components.event import EventEntity
 from homeassistant.components.event import EventDeviceClass
+from homeassistant.components.event import EventEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -20,7 +21,6 @@ from plugp100.api.hub.switch_child_device import SwitchChildDevice
 from plugp100.api.hub.t100_device import T100MotionSensor
 from plugp100.api.hub.t110_device import T110SmartDoor
 from plugp100.api.hub.t31x_device import T31Device
-from typing import Any
 
 
 async def async_setup_entry(
@@ -96,7 +96,7 @@ class S200ButtonEvent(BaseTapoHubChildEntity, EventEntity):
         self._attr_name = "Button Event"
         self._attr_event_types = ["single_press", "double_press", "rotation"]
         self._attr_device_class = EventDeviceClass.BUTTON
-    
+
     @callbacks
     def _async_handle_event(self, event: str, data: dict[str, Any] | None) -> None:
         self._trigger_event(event, data)
@@ -106,7 +106,7 @@ class S200ButtonEvent(BaseTapoHubChildEntity, EventEntity):
         cast(TapoCoordinator, self.coordinator).listen(self._async_handle_event)
         return await super().async_added_to_hass()
 
-    
+
 
 
 SENSOR_MAPPING = {

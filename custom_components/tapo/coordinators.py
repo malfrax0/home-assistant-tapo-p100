@@ -1,11 +1,12 @@
-from gc import _CallbackType
 import logging
 from abc import ABC
 from abc import abstractmethod
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import cached_property
-from typing import Any, cast
+
+from typing import Any
+from typing import cast
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -24,7 +25,7 @@ from custom_components.tapo.const import SUPPORTED_POWER_STRIP_DEVICE_MODEL
 from custom_components.tapo.errors import DeviceNotSupported
 from custom_components.tapo.helpers import get_short_model
 from custom_components.tapo.helpers import value_optional
-from homeassistant.core import CALLBACK_TYPE
+from homeassistant.core import CALLBACK_TYPE, callback
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.debounce import Debouncer
@@ -47,6 +48,7 @@ from plugp100.responses.device_state import LightDeviceState
 from plugp100.responses.device_state import PlugDeviceState
 from plugp100.responses.tapo_exception import TapoError
 from plugp100.responses.tapo_exception import TapoException
+from typing import Any
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -114,15 +116,17 @@ class TapoCoordinator(ABC, DataUpdateCoordinator[StateMap]):
                 hass, _LOGGER, cooldown=DEBOUNCER_COOLDOWN, immediate=True
             ),
         )
-        self._callbacks: list[_CallbackType] = []
+        self._callbacks: list[callback] = []
         self._states: StateMap = {}
 
-    def listen(self, callback: _CallbackType):
-        self._callbacks.append(callable)
+    def listen(self, inCallback: callback):
+        self._callbacks.append(inCallback)
 
-    def fire(self, event: str, data: [str, Any] | None) -> None:
-        for callback in self._callbacks:
-            callback(event, data)
+    def fire(self, device_id, event: str, data: dict[str, Any] | None) -> None:
+        for inCallback in self._callbacks:
+            inCallback(event, data)
+        data["device_id"] = device_id
+        self.hass.bus.async_fire(event, data)
 
     @property
     def device(self) -> TapoDevice:
