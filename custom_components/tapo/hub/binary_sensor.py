@@ -21,6 +21,7 @@ from plugp100.api.hub.switch_child_device import SwitchChildDevice
 from plugp100.api.hub.t100_device import T100MotionSensor
 from plugp100.api.hub.t110_device import T110SmartDoor
 from plugp100.api.hub.t31x_device import T31Device
+from homeassistant.core import callback
 
 
 async def async_setup_entry(
@@ -90,6 +91,7 @@ class LowBatterySensor(BaseTapoHubChildEntity, BinarySensorEntity):
             .base_info.at_low_battery
         )
 
+
 class S200ButtonEvent(BaseTapoHubChildEntity, EventEntity):
     def __init__(self, coordinator: TapoCoordinator):
         super().__init__(coordinator)
@@ -97,7 +99,7 @@ class S200ButtonEvent(BaseTapoHubChildEntity, EventEntity):
         self._attr_event_types = ["single_press", "double_press", "rotation"]
         self._attr_device_class = EventDeviceClass.BUTTON
 
-    @callbacks
+    @callback
     def _async_handle_event(self, event: str, data: dict[str, Any] | None) -> None:
         self._trigger_event(event, data)
         self.async_write_ha_state()
@@ -105,8 +107,6 @@ class S200ButtonEvent(BaseTapoHubChildEntity, EventEntity):
     async def async_added_to_hass(self) -> None:
         cast(TapoCoordinator, self.coordinator).listen(self._async_handle_event)
         return await super().async_added_to_hass()
-
-
 
 
 SENSOR_MAPPING = {
