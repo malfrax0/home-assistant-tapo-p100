@@ -75,7 +75,7 @@ class TapoHubChildCoordinator(TapoCoordinator):
                             if isinstance(ev, DoubleClickEvent):
                                 eventType = "double_press"
                             self.fire(self.device._device_id, eventType, ev.__dict__)
-                currentState = event_state.event_start_id
+                self.start_id = event_state.event_start_id
                 if rotationDegrees != 0:
                     lastEv.degrees = rotationDegrees
                     self.fire(self.device._device_id, "rotation", lastEv.__dict__)
