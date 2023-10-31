@@ -9,6 +9,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from plugp100.api.hub.s200b_device import S200BDeviceState
+from plugp100.responses.hub_childs.s200b_device_state import RotationEvent
+from plugp100.responses.hub_childs.s200b_device_state import SingleClickEvent
+from plugp100.responses.hub_childs.s200b_device_state import DoubleClickEvent
 from plugp100.api.hub.s200b_device import S200ButtonDevice
 from plugp100.api.hub.switch_child_device import SwitchChildDevice
 from plugp100.api.hub.switch_child_device import SwitchChildDeviceState
@@ -46,6 +49,7 @@ class TapoHubChildCoordinator(TapoCoordinator):
         device: HubChildDevice,
         polling_interval: timedelta,
     ):
+        self.start_id = 0
         super().__init__(hass, device, polling_interval)
 
     async def _async_update_data(self) -> StateMap:
@@ -54,20 +58,24 @@ class TapoHubChildCoordinator(TapoCoordinator):
                 await self.device.get_event_logs(page_size=20)
             ).get_or_raise()
 
-            currentState = self.get_state_of(HubChildCommonState)
+            currentState = self.start_id
             if (
-                currentState != None
-                and currentState.start_id < event_state.event_start_id
+                currentState != 0
+                and currentState < event_state.event_start_id
             ):
                 rotationDegrees = 0
                 lastEv = None
                 for ev in event_state.events:
-                    if ev.id > currentState.start_id:
-                        if ev.type == "rotation":
+                    if ev.id > currentState:
+                        if isinstance(ev, RotationEvent):
                             rotationDegrees += ev.degrees
                             lastEv = ev
                         else:
-                            self.fire(self.device._device_id, ev.type, ev.__dict__)
+                            eventType = "single_press"
+                            if isinstance(ev, DoubleClickEvent):
+                                eventType = "double_press"
+                            self.fire(self.device._device_id, eventType, ev.__dict__)
+                currentState = event_state.event_start_id
                 if rotationDegrees != 0:
                     lastEv.degrees = rotationDegrees
                     self.fire(self.device._device_id, "rotation", lastEv.__dict__)
@@ -87,8 +95,6 @@ class TapoHubChildCoordinator(TapoCoordinator):
             self.update_state_of(HubChildCommonState, base_state)
         elif isinstance(self.device, S200ButtonDevice):
             base_state = (await self.device.get_device_info()).get_or_raise()
-            event_state = (await self.device.get_event_logs(page_size=1)).get_or_raise()
-            base_state.start_id = event_state.event_start_id
             self.update_state_of(HubChildCommonState, base_state)
         elif isinstance(self.device, T100MotionSensor):
             base_state = (await self.device.get_device_state()).get_or_raise()
